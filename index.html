@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Krollix Studios</title>
+    <!-- Favicon -->
+    <link rel="icon" href="https://cdn-editing-temp.picsart.com/editing-temp-landings/58ea6fd3-ddd0-4bc7-95b3-d346fcaead74.png" type="image/png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav id="top-bar">
+        <div class="logo-text">
+            <h1>Krollix Studios</h1>
+             <img src="https://cdn-editing-temp.picsart.com/editing-temp-landings/58ea6fd3-ddd0-4bc7-95b3-d346fcaead74.png" alt="Krollix Studios Logo" class="logo">
+        </div>
+        <button id="about-button">About</button>
+    </nav>
+    <!-- Centered large duplicate logo above the main box -->
+    <div class="center-logo-wrapper">
+        <img src="https://cdn-editing-temp.picsart.com/editing-temp-landings/58ea6fd3-ddd0-4bc7-95b3-d346fcaead74.png" alt="Krollix Studios Center Logo" class="center-logo" />
+    </div>
+    <main id="main-section">
+        <p>Welcome! Enter your car edit number and access code to preview your custom edit.</p>
+        <form id="edit-form">
+            <input type="text" id="edit-number" placeholder="e.g., 72" required>
+            <input type="password" id="access-code" placeholder="Access Code" maxlength="4" required>
+            <button type="submit">Preview Edit</button>
+        </form>
+        
+        <div id="preview-section">
+            <iframe id="preview-video" style="max-width: 100%; border: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            <p>This is a preview with watermark. Contact Krollix Studios to obtain the full version.</p>
+        </div>
+    </main>
+    <div id="dev-panel">
+        <h2>Dev Panel</h2>
+        <p>Enter video URLs and access code for each edit number (watermarked and full versions).</p>
+        <div id="edits-container"></div>
+        <button id="save-edits">Save Edits</button>
+        <button id="exit-dev">Exit Dev Mode</button>
+    </div>
+    <div id="about-modal">
+        <div class="about-inner">
+            <h2>About Krollix Studios</h2>
+            <p>Hey, thank you for scanning that QR code on that card! It helps support me in a lot of ways. This is my first ever business, so buying the edit would mean the world to me.<br><br>Thanks for the support,<br>Krollix Studios</p>
+            <button id="close-about">Close</button>
+        </div>
+    </div>
+    <!-- Toast notification for friendly messages (replaces alert()) -->
+    <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+    <footer id="site-footer">
+        <div style="text-align:center; padding:14px 10px; color:var(--muted);">&copy; 2025 Krollix Studios. All rights reserved.</div>
+    </footer>
+
+    
+
+    <script>
+        // UI elements
+        const form = document.getElementById('edit-form');
+        const mainSection = document.getElementById('main-section');
+        const previewSection = document.getElementById('preview-section');
+        const previewVideo = document.getElementById('preview-video');
+    // buy button removed (purchase flow disabled)
+        const devPanel = document.getElementById('dev-panel');
+        const editsContainer = document.getElementById('edits-container');
+        const saveEdits = document.getElementById('save-edits');
+        const exitDev = document.getElementById('exit-dev');
+        const aboutButton = document.getElementById('about-button');
+        const aboutModal = document.getElementById('about-modal');
+        const closeAbout = document.getElementById('close-about');
+        const centerLogoWrapper = document.querySelector('.center-logo-wrapper');
+
+        // Ensure preview is hidden by default
+        if (previewSection) previewSection.style.display = 'none';
+
+        // Default secret access code (optional fallback, but individual codes will override)
+        const DEFAULT_ACCESS_CODE = '0001';
+
+        // Generate inputs for 1-100 with access code fields (dev panel)
+        for (let i = 1; i <= 100; i++) {
+            const editDiv = document.createElement('div');
+            editDiv.className = 'edit-entry';
+            editDiv.innerHTML = `
+                <label>Edit #${i}</label>
+                <input type="text" id="watermark-${i}" placeholder="Watermarked Video URL">
+                <input type="text" id="full-${i}" placeholder="Full Video URL">
+                <input type="text" id="access-${i}" placeholder="Access Code (4 digits)" maxlength="4">
+            `;
+            editsContainer.appendChild(editDiv);
+        }
+
+        // Add a loaded class for entrance animations (respect prefers-reduced-motion)
+        document.addEventListener('DOMContentLoaded', function() {
+            document.documentElement.classList.add('is-loaded');
+
+            // Show the About modal automatically on the first visit only.
+            // Handle first-visit About modal. Use localStorage when available; if storage access
+            // throws (some file:// setups or strict privacy settings), still show the modal but
+            // cannot persist the 'seen' flag.
+            let shouldShow = true;
+            try {
+                const seen = localStorage.getItem('krollixSeenAbout');
+                shouldShow = !seen;
+            } catch (e) {
+                // If accessing localStorage throws, fall back to showing the modal once (can't persist)
+                shouldShow = true;
+                console.warn('localStorage unavailable — showing About modal by fallback.');
+            }
+
+            if (shouldShow) {
+                if (aboutModal) {
+                    aboutModal.style.display = 'flex';
+                    aboutModal.setAttribute('aria-hidden', 'false');
+                    // move focus to the close button for accessibility
+                    if (closeAbout && typeof closeAbout.focus === 'function') closeAbout.focus();
+                }
+                try {
+                    localStorage.setItem('krollixSeenAbout', '1');
+                } catch (e) {
+                    // ignore persistence errors
+                }
+            }
+        });
+
+        // Toast utility (replaces default alert())
+        const toastEl = document.getElementById('toast');
+        function showToast(message, timeout = 3000) {
+            if (!toastEl) { alert(message); return; }
+            toastEl.textContent = message;
+            toastEl.classList.add('visible');
+            clearTimeout(toastEl._hideTimer);
+            toastEl._hideTimer = setTimeout(() => {
+                toastEl.classList.remove('visible');
+            }, timeout);
+        }
+
+        // Load edits: try server first (/api/edits), fallback to localStorage
+        async function loadEdits() {
+            try {
+                const res = await fetch('/api/edits');
+                if (res.ok) {
+                    const serverEdits = await res.json();
+                    for (let i = 1; i <= 100; i++) {
+                        if (serverEdits[i]) {
+                            const w = document.getElementById(`watermark-${i}`);
+                            const f = document.getElementById(`full-${i}`);
+                            const a = document.getElementById(`access-${i}`);
+                            if (w) w.value = serverEdits[i].watermark || '';
+                            if (f) f.value = serverEdits[i].full || '';
+                            if (a) a.value = serverEdits[i].access || DEFAULT_ACCESS_CODE;
+                        }
+                    }
+                    return;
+                }
+            } catch (e) {
+                // ignore server errors and fall back
+            }
+            // fallback to localStorage
+            const storedEdits = JSON.parse(localStorage.getItem('krollixEdits')) || {};
+            for (let i = 1; i <= 100; i++) {
+                if (storedEdits[i]) {
+                    const w = document.getElementById(`watermark-${i}`);
+                    const f = document.getElementById(`full-${i}`);
+                    const a = document.getElementById(`access-${i}`);
+                    if (w) w.value = storedEdits[i].watermark || '';
+                    if (f) f.value = storedEdits[i].full || '';
+                    if (a) a.value = storedEdits[i].access || DEFAULT_ACCESS_CODE;
+                }
+            }
+        }
+
+        loadEdits();
+
+        // Save edits: post to server (/api/edits) for each non-empty edit and save locally as fallback
+        saveEdits.addEventListener('click', async function() {
+            const edits = {};
+            for (let i = 1; i <= 100; i++) {
+                const watermarkEl = document.getElementById(`watermark-${i}`);
+                const fullEl = document.getElementById(`full-${i}`);
+                const accessEl = document.getElementById(`access-${i}`);
+                const watermark = watermarkEl ? watermarkEl.value.trim() : '';
+                const full = fullEl ? fullEl.value.trim() : '';
+                const access = (accessEl ? accessEl.value.trim() : '') || DEFAULT_ACCESS_CODE;
+                if (watermark || full || access) edits[i] = { watermark, full, access };
+            }
+            // Save to server where possible
+            try {
+                for (const [id, data] of Object.entries(edits)) {
+                    await fetch('/api/edits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ editNumber: id, ...data }) });
+                }
+            } catch (e) {
+                console.warn('Failed to save to server, saving locally instead');
+            }
+            localStorage.setItem('krollixEdits', JSON.stringify(edits));
+            showToast('Edits saved!');
+        });
+
+        // Exit dev mode
+        exitDev.addEventListener('click', function() {
+            if (devPanel) devPanel.style.display = 'none';
+            if (mainSection) mainSection.style.display = 'block';
+            if (centerLogoWrapper) centerLogoWrapper.style.display = 'flex';
+        });
+
+        // About modal handlers (fixed)
+        if (aboutButton && aboutModal) {
+            aboutButton.addEventListener('click', function() {
+                aboutModal.style.display = 'flex';
+                aboutModal.setAttribute('aria-hidden', 'false');
+            });
+        }
+        if (closeAbout && aboutModal) {
+            closeAbout.addEventListener('click', function() {
+                aboutModal.style.display = 'none';
+                aboutModal.setAttribute('aria-hidden', 'true');
+            });
+        }
+
+        // Close when clicking on backdrop
+        if (aboutModal) {
+            aboutModal.addEventListener('click', function(e) {
+                if (e.target === aboutModal) {
+                    aboutModal.style.display = 'none';
+                    aboutModal.setAttribute('aria-hidden', 'true');
+                }
+            });
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && aboutModal && aboutModal.style.display === 'flex') {
+                aboutModal.style.display = 'none';
+                aboutModal.setAttribute('aria-hidden', 'true');
+            }
+        });
+
+        // Form submit / preview handling
+        if (form) {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const inputValue = document.getElementById('edit-number').value.trim();
+                const accessCode = document.getElementById('access-code').value.trim();
+                if (inputValue === 'krollix dev') {
+                    if (accessCode === DEFAULT_ACCESS_CODE) {
+                        if (mainSection) mainSection.style.display = 'none';
+                        if (devPanel) devPanel.style.display = 'block';
+                        if (centerLogoWrapper) centerLogoWrapper.style.display = 'none';
+                        loadEdits();
+                    } else {
+                        showToast('Incorrect access code. Dev mode denied.');
+                    }
+                    return;
+                }
+
+                const editNumber = parseInt(inputValue);
+                if (isNaN(editNumber) || editNumber < 1 || editNumber > 100) {
+                    showToast('Invalid edit number. Enter a number between 1 and 100.');
+                    return;
+                }
+
+                const storedEdits = JSON.parse(localStorage.getItem('krollixEdits')) || {};
+                const editData = storedEdits[editNumber];
+                if (!editData || !editData.watermark || editData.access !== accessCode) {
+                    showToast('No edit found or incorrect access code for this number.');
+                    return;
+                }
+
+                let videoUrl = editData.watermark;
+                if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
+                    const videoId = videoUrl.match(/[?&]v=([^&]+)/)?.[1] || videoUrl.split('/').pop();
+                    videoUrl = `https://www.youtube.com/embed/${videoId}`;
+                    previewVideo.setAttribute('src', videoUrl);
+                    previewVideo.style.height = '450px';
+                } else {
+                    previewVideo.setAttribute('src', videoUrl);
+                    previewVideo.style.height = 'auto';
+                }
+                if (previewSection) previewSection.style.display = 'flex';
+                // reveal PayPal acceptance area when preview is visible
+                const payAccept = document.getElementById('payment-acceptance');
+                if (payAccept) { payAccept.style.display = 'flex'; payAccept.setAttribute('aria-hidden', 'false'); }
+
+                        // Attach Buy behavior: open in-site purchase modal (PayPal simulated)
+                        buyButton.onclick = function() {
+                            // Only store the edit number on the client. The server maps edit -> full URL.
+                            window._krollixPendingPurchase = { editNumber };
+                            openPurchaseModal();
+                        };
+            });
+        }
+
+        // Decorative orb animation — more, smaller, and flying/drifting
+        (function initOrbs() {
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                // Respect user preference to reduce motion: create a few static, subtle orbs
+                for (let i = 0; i < 4; i++) {
+                    const orb = document.createElement('div');
+                    orb.className = 'orbs';
+                    orb.style.setProperty('--size', (Math.random() * 12 + 8) + 'px');
+                    orb.style.left = Math.random() * 100 + 'vw';
+                    orb.style.top = Math.random() * 100 + 'vh';
+                    orb.style.opacity = '0.6';
+                    document.body.appendChild(orb);
+                }
+                return;
+            }
+
+            function createOrb() {
+                const orb = document.createElement('div');
+                orb.className = 'orbs';
+
+                // smaller sizes: ~4px - 28px
+                const size = (Math.random() * 24 + 4);
+                orb.style.setProperty('--size', `${size}px`);
+
+                // random starting position
+                orb.style.left = Math.random() * 100 + 'vw';
+                orb.style.top = Math.random() * 100 + 'vh';
+
+                // layered animations: long float across the screen and a short drifting oscillation
+                // faster motion: shorter float and drift durations
+                const floatDur = Math.random() * 8 + 8; // 8s - 16s (was 18-40s)
+                const driftDur = Math.random() * 2 + 1.2; // ~1.2s - 3.2s (was 3-8s)
+                const delay = -(Math.random() * floatDur); // negative delay so orbs appear already in motion
+
+                orb.style.animationName = 'float, drift';
+                orb.style.animationDuration = `${floatDur}s, ${driftDur}s`;
+                orb.style.animationTimingFunction = 'linear, ease-in-out';
+                orb.style.animationIterationCount = 'infinite, infinite';
+                orb.style.animationDirection = 'normal, alternate';
+                orb.style.animationDelay = `${delay}s, ${Math.random() * -driftDur}s`;
+
+                // subtle color / opacity variation
+                orb.style.background = `linear-gradient(135deg, rgba(102,211,255,${0.06 + Math.random()*0.14}), rgba(46,166,255,${0.04 + Math.random()*0.12}))`;
+                orb.style.opacity = `${0.45 + Math.random() * 0.5}`;
+
+                document.body.appendChild(orb);
+
+                // remove after the float animation completes and recreate a new one
+                const lifetime = (floatDur * 1000) + 1500;
+                setTimeout(() => { orb.remove(); createOrb(); }, lifetime);
+            }
+
+            // spawn a bunch of orbs to feel lively but not overwhelming
+            for (let i = 0; i < 36; i++) createOrb();
+        })();
+
+        const yearEl = document.getElementById('year');
+        if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+        // Purchase flow removed. Downloads and payments are disabled.
+    </script>
