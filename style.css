@@ -1,6 +1,9 @@
 /* style.css */
 :root {
     --bg: #0b1116; /* page background */
+    /* Set this to your image file. Example: url("assets/bg.jpg") or an absolute URL.
+       Drop your image at `assets/bg.jpg` in the project or replace the value below. */
+    --bg-image: url("https://t3.ftcdn.net/jpg/04/85/94/02/360_F_485940219_vemGDyRZMidx9oACruSPO2dAPmO65sEN.jpg");
     --surface: rgba(255,255,255,0.03); /* panels */
     --accent: #66d3ff; /* light blue accent */
     --accent-2: #2ea6ff;
@@ -25,6 +28,33 @@ body {
     overflow: auto;
     position: relative;
 }
+
+/* Full-page background image layer.
+   Use the `--bg-image` variable (defined above) to point to your file or an external URL.
+   The image is placed in a ::before pseudo-element so the existing vignette (body::after)
+   and other overlay elements continue to work as expected. */
+body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--bg-image);
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    /* On large screens keep the background fixed for a parallax feeling; on small
+       screens use scroll to avoid janky behavior. */
+    background-attachment: fixed;
+    z-index: -2; /* behind the vignette (body::after has -1) and behind content */
+    pointer-events: none;
+}
+
+@media (max-width: 720px) {
+    body::before { background-attachment: scroll; }
+}
+
+/* Remove decorative floating orbs (small dots). This hides them while keeping the
+   original code in place in case you want to re-enable later. */
+.orbs { display: none !important; }
 
 /* Entrance animations when page loads */
 .is-loaded body, .is-loaded main, .is-loaded #top-bar {
@@ -391,10 +421,6 @@ button:hover {
     color: #ffffff;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
-
-
-
-
 
 #dev-panel h2 {
     font-size: 1.3rem;
