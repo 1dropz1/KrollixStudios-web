@@ -3,7 +3,7 @@
      --bg: #0b1116; /* page background */
      /* Set this to your image file. Example: url("assets/bg.jpg") or an absolute URL.
          Drop your image at `assets/bg.jpg` in the project or replace the value below. */
-     --bg-image: url("https://t3.ftcdn.net/jpg/04/85/94/02/360_F_485940219_vemGDyRZMidx9oACruSPO2dAPmO65sEN.jpg");
+    --bg-image: url("https://wallpapercave.com/wp/wp8879567.jpg");
      /* Allow switching the focal position for small screens so subjects near the
          bottom (like a car) don't get cropped as much. */
      --bg-position: center center;
