@@ -1,15 +1,18 @@
 /* style.css */
 :root {
-    --bg: #0b1116; /* page background */
-    /* Set this to your image file. Example: url("assets/bg.jpg") or an absolute URL.
-       Drop your image at `assets/bg.jpg` in the project or replace the value below. */
-    --bg-image: url("https://t3.ftcdn.net/jpg/04/85/94/02/360_F_485940219_vemGDyRZMidx9oACruSPO2dAPmO65sEN.jpg");
-    --surface: rgba(255,255,255,0.03); /* panels */
-    --accent: #66d3ff; /* light blue accent */
-    --accent-2: #2ea6ff;
-    --text: #e6f3fb;
-    --muted: #98a7b1;
-    --radius: 10px;
+     --bg: #0b1116; /* page background */
+     /* Set this to your image file. Example: url("assets/bg.jpg") or an absolute URL.
+         Drop your image at `assets/bg.jpg` in the project or replace the value below. */
+     --bg-image: url("https://t3.ftcdn.net/jpg/04/85/94/02/360_F_485940219_vemGDyRZMidx9oACruSPO2dAPmO65sEN.jpg");
+     /* Allow switching the focal position for small screens so subjects near the
+         bottom (like a car) don't get cropped as much. */
+     --bg-position: center center;
+     --surface: rgba(255,255,255,0.03); /* panels */
+     --accent: #66d3ff; /* light blue accent */
+     --accent-2: #2ea6ff;
+     --text: #e6f3fb;
+     --muted: #98a7b1;
+     --radius: 10px;
 }
 
 body {
@@ -39,7 +42,7 @@ body::before {
     inset: 0;
     background-image: var(--bg-image);
     background-size: cover;
-    background-position: center center;
+    background-position: var(--bg-position);
     background-repeat: no-repeat;
     /* On large screens keep the background fixed for a parallax feeling; on small
        screens use scroll to avoid janky behavior. */
@@ -49,7 +52,9 @@ body::before {
 }
 
 @media (max-width: 720px) {
-    body::before { background-attachment: scroll; }
+    /* On small screens avoid fixed backgrounds and favor showing the lower part
+       of the image (helps when the subject is at the bottom of the photo). */
+    body::before { background-attachment: scroll; --bg-position: center bottom; }
 }
 
 /* Remove decorative floating orbs (small dots). This hides them while keeping the
@@ -249,13 +254,16 @@ form {
 
 input[type="text"], input[type="password"] {
     padding: 12px 14px;
-    width: 260px;
+    /* responsive: allow inputs to fill narrow screens but limit width on larger viewports */
+    width: 100%;
+    max-width: 360px;
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 8px;
     background-color: rgba(255,255,255,0.02);
     color: var(--text);
     font-size: 1rem;
     transition: border-color 0.18s, box-shadow 0.18s;
+    box-sizing: border-box;
 }
 
 input[type="text"]:focus, input[type="password"]:focus {
@@ -282,7 +290,6 @@ button:hover {
 
 /* Toast notifications */
 #toast {
-    position: fixed;
     left: 50%;
     bottom: 24px;
     transform: translateX(-50%) translateY(12px);
@@ -298,6 +305,7 @@ button:hover {
     transition: opacity 280ms ease, transform 280ms cubic-bezier(.2,.9,.2,1);
     z-index: 80;
 }
+
 #toast.visible {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
@@ -397,6 +405,28 @@ button:hover {
     box-sizing: border-box;
     color: var(--muted);
     position: relative;
+}
+
+/* Additional tweaks for small phones */
+@media (max-width: 480px) {
+    main {
+        padding: 18px 14px;
+        margin-top: 68px;
+        border-radius: 8px;
+    }
+    .center-logo {
+        width: 140px;
+        max-width: 46vw;
+    }
+    /* Make the top bar more compact and avoid clipped content */
+    #top-bar {
+        padding: 10px 12px;
+    }
+    h1 { font-size: 1.05rem; margin-right: 8px; }
+    /* On very small screens hide the h1 text (logo image remains) to save space */
+    @media (max-width: 360px) {
+        .logo-text h1 { display: none; }
+    }
 }
 
 .edit-entry {
