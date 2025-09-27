@@ -3,6 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Mobile-only: dynamically set a smaller initial-scale so the page appears zoomed-out on phones
+         (user requested ~50% zoom on mobile). We adjust at runtime rather than hard-replacing the
+         meta so desktop behavior remains unchanged and we respect users who disable JS by leaving
+         the original meta as a sensible fallback. -->
+    <script>
+        (function() {
+            try {
+                function setViewport(scale) {
+                    var meta = document.querySelector('meta[name="viewport"]');
+                    if (!meta) {
+                        meta = document.createElement('meta');
+                        meta.name = 'viewport';
+                        document.head.appendChild(meta);
+                    }
+                    // allow some zooming but set the requested initial scale
+                    meta.setAttribute('content', 'width=device-width, initial-scale=' + scale + ', maximum-scale=5, minimum-scale=0.25');
+                }
+
+                // Consider device a mobile device when UA signals mobile or the viewport width is small
+                var isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Windows Phone/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
+                if (isMobile) {
+                    // Set to ~50% zoom as requested
+                    setViewport(0.5);
+                } else {
+                    // keep normal scale for larger screens
+                    setViewport(1.0);
+                }
+
+                // Re-evaluate on resize/orientation change so switching window sizes updates behavior
+                window.addEventListener('resize', function() {
+                    var mobileNow = window.innerWidth <= 768;
+                    setViewport(mobileNow ? 0.5 : 1.0);
+                });
+            } catch (e) {
+                // If anything fails, fall back to the static meta we left in place
+                console.warn('Viewport adjust script failed', e);
+            }
+        })();
+    </script>
     <title>Krollix Studios</title>
     <!-- Favicon -->
     <link rel="icon" href="https://cdn-editing-temp.picsart.com/editing-temp-landings/58ea6fd3-ddd0-4bc7-95b3-d346fcaead74.png" type="image/png">
